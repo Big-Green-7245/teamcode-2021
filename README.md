@@ -5,7 +5,7 @@
 
 
 [![Last Commit](https://img.shields.io/github/last-commit/Big-Green-7245/teamcode-2021)](https://github.com/Big-Green-7245/teamcode-2021)
-[![Commits](https://img.shields.io/github/commit-activity/y/Big-Green-7245/teamcode-2021)](https://github.com/Big-Green-7245/teamcode-2021)
+[![Commits](https://img.shields.io/github/commit-activity/w/Big-Green-7245/teamcode-2021)](https://github.com/Big-Green-7245/teamcode-2021)
 
 ---
 
