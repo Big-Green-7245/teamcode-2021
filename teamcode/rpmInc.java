@@ -1,4 +1,5 @@
 package org.firstinspires.ftc.teamcode;
+
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -11,7 +12,7 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.ColorSensor;
 
 
-@TeleOp(name="rpmIncrement", group="Iterative Opmode")
+@TeleOp(name = "rpmIncrement", group = "Iterative Opmode")
 public class rpmInc extends LinearOpMode {
 
 
@@ -23,6 +24,11 @@ public class rpmInc extends LinearOpMode {
     static final double TURN_SPEED = 0.5;
     static final double TURN_90_DEGREE = 20; // calibrated value for the robot to go 90 degrees
     static final double DRIFT_VARIABLE = 0.76;
+
+    double[] leftShooterEncoderDistance = new double[10];
+    double[] rightShooterEncoderDistance = new double[10];
+    double[] timeOfRecording = new double[10];
+
     private ElapsedTime runtime = new ElapsedTime();
     private int tick = 21; // calibrated value for the robot to go through one block
 
@@ -120,10 +126,10 @@ public class rpmInc extends LinearOpMode {
     @Override
     public void runOpMode() throws InterruptedException {
 
-        int speed = 100;
+        double speed = 1.0;
         initHardware();
         servo = hardwareMap.get(CRServo.class, "servo");
-        colorSensor = hardwareMap.get(ColorSensor.class,"sensor");
+        colorSensor = hardwareMap.get(ColorSensor.class, "sensor");
 
         waitForStart();
 
@@ -131,17 +137,8 @@ public class rpmInc extends LinearOpMode {
         float leftShooter = ShooterLeft.getCurrentPosition();
         float rightShooter = ShooterRight.getCurrentPosition();
 
-        double starttime = getRuntime();
-        while(opModeIsActive()) {
 
-
-
-
-//            //runtime check
-//            if(getRuntime() - starttime % 200 == 0) {
-//
-//                wait(1);
-//            }
+        while (opModeIsActive()) {
 
 
             // intake
@@ -156,10 +153,9 @@ public class rpmInc extends LinearOpMode {
 
             // shooter
             if (gamepad2.left_bumper) {
-                ShooterRight.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+                ShooterRight.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
                 ShooterLeft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-                ShooterLeft.setPower(1);
-                ShooterRight.setPower(1);
+                runShooterAtRPM(1500);
             } else {
                 ShooterRight.setPower(0.0);
                 ShooterLeft.setPower(0.0);
@@ -171,8 +167,7 @@ public class rpmInc extends LinearOpMode {
                 if (gamepad1.left_bumper) {
 
                     dpishift = 2;
-                }
-                else {
+                } else {
                     dpishift = 1;
                 }
             }
@@ -192,13 +187,13 @@ public class rpmInc extends LinearOpMode {
             telemetry.addData("servoPower", contPower);
 
             // Mecanum wheel movememnts
-            double r = Math.hypot(gamepad1.left_stick_x,gamepad1.left_stick_y);
-            double robotAngle = Math.atan2(gamepad1.left_stick_y,gamepad1.left_stick_x) - Math.PI / 4;
+            double r = Math.hypot(gamepad1.left_stick_x, gamepad1.left_stick_y);
+            double robotAngle = Math.atan2(gamepad1.left_stick_y, gamepad1.left_stick_x) - Math.PI / 4;
             double v1 = r * Math.cos(robotAngle) + gamepad1.right_stick_x;
             double v2 = r * Math.sin(robotAngle) - gamepad1.right_stick_x;
             double v3 = r * Math.sin(robotAngle) + gamepad1.right_stick_x;
             double v4 = r * Math.cos(robotAngle) - gamepad1.right_stick_x;
-            double maxV = Math.max(Math.max(Math.abs(v1),Math.abs(v2)),Math.max(Math.abs(v3),Math.abs(v4)));
+            double maxV = Math.max(Math.max(Math.abs(v1), Math.abs(v2)), Math.max(Math.abs(v3), Math.abs(v4)));
             if (maxV > 1) {
                 v1 /= maxV;
                 v2 /= maxV;
@@ -215,16 +210,80 @@ public class rpmInc extends LinearOpMode {
             rightFront.setPower(v2);
             leftBack.setPower(v3);
             rightBack.setPower(v4);
-
-
-            //RPM measuring
-            telemetry.addData("left RPM: ",  ShooterLeft.getCurrentPosition() /48 );
-            telemetry.addData("right RPM: ",  ShooterRight.getCurrentPosition() /48 );
-            telemetry.update();
         }
     }
+
+    public void runShooterAtRPM(int rpm) {
+        ShooterLeft.setPower(1);
+        ShooterRight.setPower(1);
+
+        //double[] leftShooterEncoderDistance = new double[10];
+        //double[] rightShooterEncoderDistance = new double[10];
+        //double[] timeOfRecording = new double[10];
+        double leftRPM = 0;
+        double rightRPM = 0;
+
+        double rpmPerMsR = 0;
+        double rpmPerMsR = 0;
+
+        //while (!(leftRPM > 0.9 * rpm  && leftRPM <  1.1 * rpm && rightRPM > 0.9 * rpm  && rightRPM <  1.1 * rpm)) {
+        if (runtime.milliseconds() - timeOfRecording[0] > 100) {
+
+        }
+
+
+
+        if (runtime.milliseconds() - timeOfRecording[0] > 100) {
+
+
+            //get encoder values
+            for (int i = 9; i > 0; i--) {
+                leftShooterEncoderDistance[i] = leftShooterEncoderDistance[i - 1];
+                rightShooterEncoderDistance[i] = rightShooterEncoderDistance[i - 1];
+            }
+            leftShooterEncoderDistance[0] = (ShooterLeft.getCurrentPosition() / 96.0);
+            rightShooterEncoderDistance[0] = (ShooterRight.getCurrentPosition() / 96.0);
+
+
+            for (int i = 9; i > 0; i--) {
+                timeOfRecording[i] = timeOfRecording[i - 1];
+            }
+            timeOfRecording[0] = runtime.milliseconds();
+
+            //calculate rpm
+            leftRPM = 0;
+            rightRPM = 0;
+            for (int i = 1; i < 10; i++) {
+                leftRPM += ((leftShooterEncoderDistance[0] - leftShooterEncoderDistance[i]) / ((timeOfRecording[0] - timeOfRecording[i]) / 60 * (i)));
+                rightRPM += ((rightShooterEncoderDistance[0] - rightShooterEncoderDistance[i]) / ((timeOfRecording[0] - timeOfRecording[i]) / 60 * (i)));
+            }
+            leftRPM /= -9;
+            rightRPM /= 9;
+
+        }
+        telemetry.addData("left RPM: ", (leftRPM));
+        telemetry.addData("right RPM: ", (rightRPM));
+        telemetry.addLine("RPM per ms L=" + rpmPerMsL + "  R=" +rpmPerMsR);
+        telemetry.update();
+
+        if (leftRPM < rpm - 100 && ShooterLeft.getPower() < 0.95) {
+            ShooterLeft.setPower(ShooterLeft.getPower() + 0.05);
+        } else if (leftRPM > rpm + 100 && ShooterLeft.getPower() > -0.95) {
+            ShooterLeft.setPower(ShooterLeft.getPower() - 0.05);
+        }
+
+        if (rightRPM < rpm - 100 && ShooterRight.getPower() < 0.95) {
+            ShooterRight.setPower(ShooterRight.getPower() + 0.05);
+        } else if (leftRPM > rpm + 100 && ShooterRight.getPower() > -0.95) {
+            ShooterRight.setPower(ShooterRight.getPower() - 0.05);
+        }
+
+        //ShooterLeft.setPower((ShooterLeft.getPower() + ShooterLeft.getPower() * (rpm / leftRPM)) / 2);
+        //ShooterRight.setPower((ShooterRight.getPower() + ShooterRight.getPower() * (rpm / rightRPM)) / 2);
+    }
+
     // Initializes hardware
-    public void initHardware () {
+    public void initHardware() {
         leftBack = hardwareMap.get(DcMotor.class, "leftBack");
         leftBack.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         leftBack.setDirection(DcMotor.Direction.REVERSE);
