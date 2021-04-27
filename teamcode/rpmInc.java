@@ -224,7 +224,6 @@ public class rpmInc extends LinearOpMode {
         double rightRPM = 0;
 
         double rpmPerMsR = 0;
-        double rpmPerMsR = 0;
 
         //while (!(leftRPM > 0.9 * rpm  && leftRPM <  1.1 * rpm && rightRPM > 0.9 * rpm  && rightRPM <  1.1 * rpm)) {
         if (runtime.milliseconds() - timeOfRecording[0] > 100) {
@@ -263,7 +262,7 @@ public class rpmInc extends LinearOpMode {
         }
         telemetry.addData("left RPM: ", (leftRPM));
         telemetry.addData("right RPM: ", (rightRPM));
-        telemetry.addLine("RPM per ms L=" + rpmPerMsL + "  R=" +rpmPerMsR);
+       // telemetry.addLine("RPM per ms L=" + rpmPerMsL + "  R=" +rpmPerMsR);
         telemetry.update();
 
         if (leftRPM < rpm - 100 && ShooterLeft.getPower() < 0.95) {
