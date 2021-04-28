@@ -36,8 +36,8 @@ public class auto_framework extends LinearOpMode implements SensorEventListener
     DcMotor rightBack;
     DcMotor rightFront;
     CRServo servo;
-    static final double COUNTS_PER_MOTOR_REV = 180;    // eg: TETRIX Motor Encoder
-    static final double DRIVE_GEAR_REDUCTION = 3.0;     // This is < 1.0 if geared UP
+    static final double COUNTS_PER_MOTOR_REV = 96 * 60 / 3.5;    // eg: TETRIX Motor Encoder. 96 @ 1:1 * 60:1 / 3 measured adjustment value
+    static final double DRIVE_GEAR_REDUCTION = 1.0;     // This is < 1.0 if geared UP
     static final double WHEEL_DIAMETER_INCHES = 4.0;     // For figuring circumference
     static final double COUNTS_PER_INCH = (COUNTS_PER_MOTOR_REV * DRIVE_GEAR_REDUCTION) / (WHEEL_DIAMETER_INCHES * 3.1415);
     static final double FORWARD_SPEED = 0.6;
