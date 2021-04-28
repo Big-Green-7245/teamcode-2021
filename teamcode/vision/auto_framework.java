@@ -174,9 +174,9 @@ public class auto_framework extends LinearOpMode implements SensorEventListener
             // reset the timeout time and start motion. *Auto2Jerjer.DRIFT_VARIABLE
             runtime.reset();
             leftFront.setPower(Math.abs(speed));
-            rightFront.setPower(Math.abs(speed*DRIFT_VARIABLE));
+            rightFront.setPower(Math.abs(speed));
             leftBack.setPower(Math.abs(speed));
-            rightBack.setPower(Math.abs(speed*DRIFT_VARIABLE));
+            rightBack.setPower(Math.abs(speed));
 
             // keep looping while we are still active, and there is time left, and both motors are running.
             // Note: We use (isBusy() && isBusy()) in the loop test, which means that when EITHER motor hits
