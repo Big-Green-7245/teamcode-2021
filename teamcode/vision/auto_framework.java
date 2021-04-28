@@ -1,4 +1,10 @@
 package org.firstinspires.ftc.teamcode.vision;
+import android.annotation.SuppressLint;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.CRServo;
@@ -17,9 +23,11 @@ import org.openftc.easyopencv.OpenCvCameraRotation;
 import org.openftc.easyopencv.OpenCvInternalCamera;
 import org.openftc.easyopencv.OpenCvPipeline;
 
+import java.math.BigDecimal;
+
 
 @Autonomous
-public class auto_framework extends LinearOpMode
+public class auto_framework extends LinearOpMode implements SensorEventListener
 {
     OpenCvInternalCamera phoneCam;
     SkystoneDeterminationPipeline pipeline;
@@ -39,70 +47,29 @@ public class auto_framework extends LinearOpMode
     private ElapsedTime runtime = new ElapsedTime();
     private int tick = 21; // calibrated value for the robot to go through one block
 
+    // System time
+    long lastSensorUpdateSysTime = System.currentTimeMillis();
+    long lastGyroChangeTime = System.currentTimeMillis();
 
+    // Constants / Params
+    final float LPF_ALPHA = 0.25f; // LPF filter Alpha
+    final boolean USE_LPF_FILTER = true;
 
+    // Raw sensor data record
+    float[] calMagDataRaw = {0, 0, 0};
+    float[] gyroDataRaw = {0, 0, 0};
+    double[] gyroAng = {0, 0, 0};
+    double[] magAng = {0, 0, 0};
+
+    // Sensor definitions / variables
+    SensorManager sensorManager;
 
     @Override
     public void runOpMode()
     {
-        leftBack = hardwareMap.get(DcMotor.class, "leftBack");
-        leftBack.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        leftBack.setDirection(DcMotor.Direction.REVERSE);
-        leftBack.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        leftBack.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-
-        rightBack = hardwareMap.get(DcMotor.class, "rightBack");
-        rightBack.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        rightBack.setDirection(DcMotor.Direction.FORWARD);
-        rightBack.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        rightBack.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-
-        leftFront = hardwareMap.get(DcMotor.class, "leftFront");
-        leftFront.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        leftFront.setDirection(DcMotor.Direction.REVERSE);
-        leftFront.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        leftFront.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-
-        rightFront = hardwareMap.get(DcMotor.class, "rightFront");
-        rightFront.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        rightFront.setDirection(DcMotor.Direction.FORWARD);
-        rightFront.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        rightFront.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-
-        // Send telemetry message to signify robot waiting;
-        telemetry.addData("Status", "Resetting Encoders");    //
-        telemetry.update();
-
-        leftFront.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        rightFront.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        leftBack.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        rightBack.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-
-        leftFront.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        rightFront.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        leftBack.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        rightBack.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-
-        servo = hardwareMap.get(CRServo.class, "servo");
-
-        int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
-        phoneCam = OpenCvCameraFactory.getInstance().createInternalCamera(OpenCvInternalCamera.CameraDirection.BACK, cameraMonitorViewId);
-        pipeline = new SkystoneDeterminationPipeline();
-        phoneCam.setPipeline(pipeline);
-
-        // We set the viewport policy to optimized view so the preview doesn't appear 90 deg
-        // out when the RC activity is in portrait. We do our actual image processing assuming
-        // landscape orientation, though.
-        phoneCam.setViewportRenderingPolicy(OpenCvCamera.ViewportRenderingPolicy.OPTIMIZE_VIEW);
-
-        phoneCam.openCameraDeviceAsync(new OpenCvCamera.AsyncCameraOpenListener()
-        {
-            @Override
-            public void onOpened()
-            {
-                phoneCam.startStreaming(320,240, OpenCvCameraRotation.SIDEWAYS_LEFT);
-            }
-        });
+        initHardware();
+        initPhoneSensors();
+        initVision();
 
         waitForStart();
 
@@ -301,6 +268,135 @@ public class auto_framework extends LinearOpMode
             //  sleep(250);   // optional pause after each move
         }
 
+    }
+
+    @SuppressLint("SetTextI18n")
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        if (event.sensor.getType() == Sensor.TYPE_GYROSCOPE) {
+            long tDiff = System.currentTimeMillis() - lastGyroChangeTime;
+            lastGyroChangeTime = System.currentTimeMillis();
+            gyroDataRaw = lowPass(event.values.clone(), gyroDataRaw);
+            gyroAng[0] += tDiff / 1000.0 * gyroDataRaw[0];
+            gyroAng[1] += tDiff / 1000.0 * gyroDataRaw[1];
+            gyroAng[2] += tDiff / 1000.0 * gyroDataRaw[2];
+            gyroDataRaw = event.values;
+        }
+        if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
+            if (USE_LPF_FILTER)
+                calMagDataRaw = lowPass(event.values.clone(), calMagDataRaw);
+            else
+                calMagDataRaw = event.values.clone();
+            magAng[0] = (float) Math.toDegrees(Math.atan2(calMagDataRaw[0], calMagDataRaw[1]));
+            magAng[1] = (float) Math.toDegrees(Math.atan2(calMagDataRaw[1], calMagDataRaw[2]));
+            magAng[2] = (float) Math.toDegrees(Math.atan2(calMagDataRaw[2], calMagDataRaw[0]));
+        }
+        // Update time
+        lastSensorUpdateSysTime = System.currentTimeMillis();
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        // Unused
+    }
+
+    public float[] lowPass(float[] input, float[] output) {
+        if (output == null) return input;
+        for (int i = 0; i < input.length; i++) {
+            output[i] = output[i] + LPF_ALPHA * (input[i] - output[i]);
+        }
+        return output;
+    }
+
+    public BigDecimal[] round(float[] d, int decimalPlace) {
+        BigDecimal[] bdarr = new BigDecimal[d.length];
+        for (int i = 0; i < d.length; i++) {
+            BigDecimal bd = new BigDecimal(d[i] + "");
+            bdarr[i] = bd.setScale(decimalPlace, BigDecimal.ROUND_HALF_UP);
+        }
+        return bdarr;
+    }
+
+    public BigDecimal round(float d, int decimalPlace) {
+        BigDecimal bd = new BigDecimal(d + "");
+        bd = bd.setScale(decimalPlace, BigDecimal.ROUND_HALF_UP);
+        return bd;
+    }
+
+    public void resetGyroAng() {
+        gyroAng = new double[]{0, 0, 0};
+    }
+
+    public void initVision () {
+        int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
+        phoneCam = OpenCvCameraFactory.getInstance().createInternalCamera(OpenCvInternalCamera.CameraDirection.BACK, cameraMonitorViewId);
+        pipeline = new SkystoneDeterminationPipeline();
+        phoneCam.setPipeline(pipeline);
+
+        // We set the viewport policy to optimized view so the preview doesn't appear 90 deg
+        // out when the RC activity is in portrait. We do our actual image processing assuming
+        // landscape orientation, though.
+        phoneCam.setViewportRenderingPolicy(OpenCvCamera.ViewportRenderingPolicy.OPTIMIZE_VIEW);
+
+        phoneCam.openCameraDeviceAsync(new OpenCvCamera.AsyncCameraOpenListener()
+        {
+            @Override
+            public void onOpened()
+            {
+                phoneCam.startStreaming(320,240, OpenCvCameraRotation.SIDEWAYS_LEFT);
+            }
+        });
+    }
+
+    public void initPhoneSensors () {
+        sensorManager.registerListener((SensorEventListener) this,
+                sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD),
+                SensorManager.SENSOR_DELAY_GAME);
+        sensorManager.registerListener((SensorEventListener) this,
+                sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE),
+                SensorManager.SENSOR_DELAY_FASTEST);
+    }
+
+    public void initHardware () {
+        leftBack = hardwareMap.get(DcMotor.class, "leftBack");
+        leftBack.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        leftBack.setDirection(DcMotor.Direction.REVERSE);
+        leftBack.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        leftBack.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        rightBack = hardwareMap.get(DcMotor.class, "rightBack");
+        rightBack.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        rightBack.setDirection(DcMotor.Direction.FORWARD);
+        rightBack.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        rightBack.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        leftFront = hardwareMap.get(DcMotor.class, "leftFront");
+        leftFront.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        leftFront.setDirection(DcMotor.Direction.REVERSE);
+        leftFront.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        leftFront.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        rightFront = hardwareMap.get(DcMotor.class, "rightFront");
+        rightFront.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        rightFront.setDirection(DcMotor.Direction.FORWARD);
+        rightFront.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        rightFront.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        servo = hardwareMap.get(CRServo.class, "servo");
+
+        // Send telemetry message to signify robot waiting;
+        telemetry.addData("Status", "Resetting Encoders");
+        telemetry.update();
+
+        leftFront.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        rightFront.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        leftBack.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        rightBack.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+
+        leftFront.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        rightFront.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        leftBack.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        rightBack.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
     }
 
     public static class SkystoneDeterminationPipeline extends OpenCvPipeline
