@@ -39,7 +39,7 @@ public class auto_framework_test extends LinearOpMode
     static final double     FORWARD_SPEED = 0.6;
     static final double     TURN_SPEED    = 0.5;
     static final double DRIVE_SPEED = 0.6;
-    HardwarePushbot         robot   = new HardwarePushbot();
+    HardwarePushbot robot   = new HardwarePushbot();
     private ElapsedTime runtime = new ElapsedTime();
     private int tick = 21;
     double DRIFT_VARIABLE = 0.8;
