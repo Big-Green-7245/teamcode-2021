@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.vision;
 import android.annotation.SuppressLint;
+import android.content.Context;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -349,6 +350,7 @@ public class auto_framework extends LinearOpMode implements SensorEventListener
     }
 
     public void initPhoneSensors () {
+        sensorManager = (SensorManager) hardwareMap.appContext.getSystemService(Context.SENSOR_SERVICE);
         sensorManager.registerListener((SensorEventListener) this,
                 sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD),
                 SensorManager.SENSOR_DELAY_GAME);
